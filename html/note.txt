@@ -1,0 +1,13 @@
+first:- all gain is 1 to see its working fine and in the right direction
+second:- yaw p 3 and i 0.02 to minimize yaw rotation
+         d gain set to 3
+         increase untill becone restless
+         decrease the d gain untill its become smooth again
+         now decrease 25% and keep it
+
+third: increase p gain at step 0.2 untill it become overcompansate then keep 50%
+
+fourth: increase i gain at step 0.01 untill it become overcompansate slowaly then keep 50%
+
+fifth: increase p gain untill its get fast oscillation
+        then decrease it slowaly untill it will acceptable

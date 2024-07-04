@@ -1,0 +1,15 @@
+accPitch: 171 accRoll: 4
+gyroPitch: 58 gyroRoll: 442 gyroYaw: 34
+temperature: -688
+------------------------------------------------
+accPitch: 171 accRoll: 5
+gyroPitch: 59 gyroRoll: 447 gyroYaw: 35
+temperature: -573
+------------------------------------------------
+accPitch: 170 accRoll: 5
+gyroPitch: 59 gyroRoll: 447 gyroYaw: 35
+temperature: -557
+-------------------------------------------------
+accPitch: 171 accRoll: 5
+gyroPitch: 59 gyroRoll: 446 gyroYaw: 35
+temperature: -574
