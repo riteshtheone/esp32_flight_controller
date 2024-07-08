@@ -6,7 +6,7 @@
 #include "htmlpage.h"
 #include "header.h"
 
-int debug_type = 1;     //0:receiver  1:esc_output  2:gyro
+int debug_type = 2;     //0:receiver  1:esc_output  2:gyro
 
 JsonDocument json;
 String jsonString;

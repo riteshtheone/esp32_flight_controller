@@ -19,7 +19,7 @@ Signal received_signal;
 void onDataRecv(const uint8_t *mac_addr, const uint8_t *_data, int data_len) {
     memcpy(&received_signal, _data, sizeof(received_signal));
     channel_1 = received_signal.roll;
-    channel_2 = received_signal.pitch;
+    channel_2 = map(received_signal.pitch, 1000, 2000, 2000, 1000);;
     channel_3 = map(received_signal.throttle, 1000, 2000, 1000, 1600);
     channel_4 = received_signal.yaw;
 }

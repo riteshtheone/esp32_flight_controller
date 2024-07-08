@@ -20,8 +20,8 @@ volatile float pid_i_gain_pitch = pid_i_gain_roll;        //Gain setting for the
 volatile float pid_d_gain_pitch = pid_d_gain_roll;        //Gain setting for the pitch D-controller.
 int pid_max_pitch = pid_max_roll;                         //Maximum output of the PID-controller (+/-).
 
-volatile float pid_p_gain_yaw = 3.0;                      //Gain setting for the pitch P-controller (default = 4.0).
-volatile float pid_i_gain_yaw = 0.002;                     //Gain setting for the pitch I-controller (default = 0.02).
+volatile float pid_p_gain_yaw = 4.0;                      //Gain setting for the pitch P-controller (default = 4.0).
+volatile float pid_i_gain_yaw = 0.008;                     //Gain setting for the pitch I-controller (default = 0.02).
 volatile float pid_d_gain_yaw = 0.0;                      //Gain setting for the pitch D-controller (default = 0.0).
 int pid_max_yaw = 400;                                    //Maximum output of the PID-controller (+/-).
 
