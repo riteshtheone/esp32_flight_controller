@@ -5,6 +5,7 @@
 #include "Wire.h"
 #include "ESP32Servo.h"
 
+#define BATTERY_VOLTAGE_PIN 35
 #define gyro_address 0x68                  //The I2C address of the MPU-6050 is 0x68 in hexadecimal form.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -73,8 +74,14 @@ const int esc3_pin = 19;
 const int esc4_pin = 18;
 Servo esc1_pwm, esc2_pwm, esc3_pwm, esc4_pwm;
 
-void pwmSetup() {
+volatile float battery_voltage;
+void calculateBatteryVoltage() {
+    // to measure voltage under 3.3 volt, multiplication factor = 0.0033
+    // to measure voltage under 16.8 volt, multiplication factor = 0.0168
+    battery_voltage = float(map(analogRead(BATTERY_VOLTAGE_PIN), 0, 4095, 0, 1000) * 0.0168);
+}
 
+void pwmSetup() {
     ESP32PWM::allocateTimer(0);
 	ESP32PWM::allocateTimer(1);
 	ESP32PWM::allocateTimer(2);

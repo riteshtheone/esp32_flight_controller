@@ -72,6 +72,13 @@ void pid_serverSetup() {
         request->send(200, "text/plain", String(debug_type));
     });
 
+    server.on("/battery", HTTP_GET, [](AsyncWebServerRequest *request) {
+        calculateBatteryVoltage();
+        String s = "<h1>Battery Voltaage:- "+ String(battery_voltage)+" V</h1>";
+        s += "<h1>Input Voltage:- "+ String((battery_voltage/0.0168)*0.0033) +" v</h1>";
+        request->send(200, "text/html", s);
+    });
+
     server.on("/level", HTTP_GET, [](AsyncWebServerRequest *request) {
         if (request->hasParam("set")) {
             String str = request->getParam("set")->value();

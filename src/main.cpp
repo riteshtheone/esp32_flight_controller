@@ -36,6 +36,7 @@ void setup() {
     if (debug) Serial.begin(115200);
     // pid_p_gain_roll = pid_i_gain_roll = pid_d_gain_roll = pid_p_gain_pitch = pid_i_gain_pitch = pid_d_gain_pitch = pid_p_gain_yaw = pid_i_gain_yaw = pid_d_gain_yaw = 0;
     pinMode(2, OUTPUT);
+    pinMode(BATTERY_VOLTAGE_PIN, INPUT);
     espNowSetup();                                                  //start signal receiver
     i2c_setup();                                                    //Start the I2C as master
     gyro_setup();                                                   //Initiallize the gyro and set the correct registers.
