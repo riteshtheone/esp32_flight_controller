@@ -6,7 +6,7 @@
 #include "htmlpage.h"
 #include "header.h"
 
-int debug_type = 2;     //0:receiver  1:esc_output  2:gyro
+int debug_type = 0;     //0:receiver  1:esc_output  2:gyro
 
 JsonDocument json;
 String jsonString;
@@ -22,10 +22,11 @@ void pid_serverSetup() {
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Content-Type");
 
     server.on("/", HTTP_ANY, [](AsyncWebServerRequest *request) {
-        if (request->hasArg("rpP") && request->hasArg("rpI") && request->hasArg("rpD") &&
-            request->hasArg("yP") && request->hasArg("yI"), request->hasArg("yD")) {
+        if (request->hasArg("rpP") && request->hasArg("rpI") && request->hasArg("rpD") 
+            && request->hasArg("yP") && request->hasArg("yI") && request->hasArg("yD")
+            && request->hasArg("aP") && request->hasArg("aI") && request->hasArg("aD")) {
 
-            String rpP, rpI, rpD, yP, yI, yD;
+            String rpP, rpI, rpD, yP, yI, yD, aP, aI, aD;
             rpP = request->arg("rpP");
             rpI = request->arg("rpI");
             rpD = request->arg("rpD");
@@ -34,6 +35,10 @@ void pid_serverSetup() {
             yI = request->arg("yI");
             yD = request->arg("yD");
 
+            aP = request->arg("aP");
+            aI = request->arg("aI");
+            aD = request->arg("aD");
+
             pid_p_gain_roll = pid_p_gain_pitch = rpP.toFloat();
             pid_i_gain_roll = pid_i_gain_pitch = rpI.toFloat();
             pid_d_gain_roll = pid_d_gain_pitch = rpD.toFloat();
@@ -41,6 +46,10 @@ void pid_serverSetup() {
             pid_p_gain_yaw = yP.toFloat();
             pid_i_gain_yaw = yI.toFloat();
             pid_d_gain_yaw = yD.toFloat();
+
+            pid_p_gain_altitude = aP.toFloat();
+            pid_i_gain_altitude = aI.toFloat();
+            pid_d_gain_altitude = aD.toFloat();
         }
         return request->send(200, "text/html", page);
     });
@@ -49,9 +58,15 @@ void pid_serverSetup() {
         json["rpP"] = String(pid_p_gain_roll, 3);
         json["rpI"] = String(pid_i_gain_roll, 4);
         json["rpD"] = String(pid_d_gain_roll, 3);
+
         json["yP"] = String(pid_p_gain_yaw, 3);
         json["yI"] = String(pid_i_gain_yaw, 4);
         json["yD"] = String(pid_d_gain_yaw, 3);
+
+        json["aP"] = String(pid_p_gain_altitude, 3);
+        json["aI"] = String(pid_i_gain_altitude, 4);
+        json["aD"] = String(pid_d_gain_altitude, 3);
+
         serializeJson(json, jsonString);
         return request->send(200, "text/plain", jsonString);
     });
@@ -69,14 +84,38 @@ void pid_serverSetup() {
             if (str.equals("1")) debug_type = 1;
             if (str.equals("2")) debug_type = 2;
         }
-        request->send(200, "text/plain", String(debug_type));
+        return request->send(200, "text/plain", String(debug_type));
     });
 
     server.on("/battery", HTTP_GET, [](AsyncWebServerRequest *request) {
-        calculateBatteryVoltage();
         String s = "<h1>Battery Voltaage:- "+ String(battery_voltage)+" V</h1>";
         s += "<h1>Input Voltage:- "+ String((battery_voltage/0.0168)*0.0033) +" v</h1>";
-        request->send(200, "text/html", s);
+        return request->send(200, "text/html", s);
+    });
+
+    server.on("/takeoff", HTTP_GET, [](AsyncWebServerRequest *request) {
+        if (request->hasParam("set")) {
+            int takeoff_val = request->getParam("set")->value().toFloat();
+            manual_takeoff_throttle = takeoff_val > 1400 && takeoff_val < 1600 ? takeoff_val : 0;
+        }
+        return request->send(200, "text/plain", String(manual_takeoff_throttle));
+    });
+    server.on("/error", HTTP_GET, [](AsyncWebServerRequest *request) {
+        return request->send(200, "text/plain", String(error));
+    });
+
+    server.on("/press", HTTP_GET, [](AsyncWebServerRequest *request) {
+        if (request->hasParam("set")) {
+            press = request->getParam("set")->value().toFloat();
+        }
+        return request->send(200, "text/plain", String(press));
+    });
+
+    server.on("/throttle_diff", HTTP_GET, [](AsyncWebServerRequest *request) {
+        if (request->hasParam("set")) {
+            throttle_diff = request->getParam("set")->value().toInt();
+        }
+        return request->send(200, "text/plain", String(throttle_diff));
     });
 
     server.on("/level", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -84,10 +123,10 @@ void pid_serverSetup() {
             String str = request->getParam("set")->value();
             auto_level = str.equals("1") ? true : false;
         }
-        request->send(200, "text/plain", String(auto_level));
+        return request->send(200, "text/plain", String(auto_level));
     });
     server.onNotFound([](AsyncWebServerRequest *request) {
-        request->send(404, "text/plain", "Not found");
+        return request->send(404, "text/plain", "Not found");
     });
 }
 

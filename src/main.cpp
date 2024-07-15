@@ -13,15 +13,18 @@ struct Signal {
     uint16_t yaw = 1500;
     uint16_t pitch = 1500;
     uint16_t roll = 1500;
+    uint16_t ax5 = 1000;
 };
 Signal received_signal;
 
 void onDataRecv(const uint8_t *mac_addr, const uint8_t *_data, int data_len) {
     memcpy(&received_signal, _data, sizeof(received_signal));
     channel_1 = received_signal.roll;
-    channel_2 = map(received_signal.pitch, 1000, 2000, 2000, 1000);;
-    channel_3 = map(received_signal.throttle, 1000, 2000, 1000, 1600);
+    channel_2 = map(received_signal.pitch, 1000, 2000, 2000, 1000);
+    channel_3 = received_signal.throttle;
+    // channel_3 = map(received_signal.throttle, 1000, 2000, 1000, 1600);
     channel_4 = received_signal.yaw;
+    channel_5 = received_signal.ax5;
 }
 
 void espNowSetup() {
@@ -78,12 +81,50 @@ void setup() {
     digitalWrite(2, LOW);
     while (channel_1 < 990 || channel_2 < 990 || channel_4 < 990 || channel_3 < 990 || channel_3 > 1050) yield();
     error = 0;                                                      //Reset the error status to 0.
+    
+    // barometer ----------------------------------------------------------------------------------------
+    for (start = 1; start <= 6; start++) {
+    Wire.beginTransmission(MS5611_address);                    //Start communication with the MPU-6050.
+    Wire.write(0xA0 + start * 2);                              //Send the address that we want to read.
+    Wire.endTransmission();                                    //End the transmission.
+
+    Wire.requestFrom(MS5611_address, 2);                       //Request 2 bytes from the MS5611.
+    C[start] = Wire.read() << 8 | Wire.read();                //Add the low and high byte to the C[x] calibration variable.
+  }
+
+  OFF_C2 = C[2] * pow(2, 16);                                   //This value is pre-calculated to offload the main program loop.
+  SENS_C1 = C[1] * pow(2, 15);                                  //This value is pre-calculated to offload the main program loop.
+
+  //The MS5611 needs a few readings to stabilize.
+  for (start = 0; start < 100; start++) {                       //This loop runs 100 times.
+    read_barometer();                                           //Read and calculate the barometer data.
+    delay(4);                                                   //The main program loop also runs 250Hz (4ms per loop).
+  }
+  actual_pressure = 0;                                          //Reset the pressure calculations.
+
+  //Before starting the avarage accelerometer value is preloaded into the variables.
+  for (start = 0; start <= 24; start++)acc_z_average_short[start] = acc_z;
+  for (start = 0; start <= 49; start++)acc_z_average_long[start] = acc_z;
+  acc_z_average_short_total = acc_z * 25;
+  acc_z_average_long_total = acc_z * 50;
+  start = 0;
+    //barometer end----------------------------------------------------------------------------------------
+    
+    
     digitalWrite(2, HIGH);
     loop_timer = micros();                                          //Set the timer for the first loop.
 }
 
 void loop() {
+
+    flight_mode = 1;                                                                 //In all other situations the flight mode is 1;
+    if (channel_5 >= 1200 && channel_5 < 1600)flight_mode = 2;                       //If channel 6 is between 1200us and 1600us the flight mode is 2
+
     gyro_signalen();                                                                    //Read the gyro and accelerometer data.
+    read_barometer();                                                                //Read and calculate the barometer data.
+    calculateBatteryVoltage();
+    
+    
     //65.5 = 1 deg/sec (check the datasheet of the MPU-6050 for more information).
     gyro_roll_input = (gyro_roll_input * 0.7) + (((float) gyro_roll / 65.5) * 0.3);      //Gyro pid input is deg/sec.
     gyro_pitch_input = (gyro_pitch_input * 0.7) + (((float) gyro_pitch / 65.5) * 0.3);   //Gyro pid input is deg/sec.
@@ -118,35 +159,37 @@ void loop() {
     // 17 = 29 degrees
     // 18 = 27 degrees
 
+    vertical_acceleration_calculations();                                            //Calculate the vertical accelration.
+
     if (!auto_level) {                                                                  //If the quadcopter is not in auto-level mode
         pitch_level_adjust = 0;                                                         //Set the pitch angle correction to zero.
         roll_level_adjust = 0;                                                          //Set the roll angle correcion to zero.
     }
 
 
-    //For starting the motors: throttle low and yaw left (step 1).
-    if (channel_3 < 1050 && channel_4 < 1050) start = 1;
-    //When yaw stick is back in the center position start the motors (step 2).
-    if (start == 1 && channel_3 < 1050 && channel_4 > 1450) {
-        digitalWrite(2, LOW);
-        start = 2;
+    // //For starting the motors: throttle low and yaw left (step 1).
+    // if (channel_3 < 1050 && channel_4 < 1050) start = 1;
+    // //When yaw stick is back in the center position start the motors (step 2).
+    // if (start == 1 && channel_3 < 1050 && channel_4 > 1450) {
+    //     digitalWrite(2, LOW);
+    //     start = 2;
 
-        angle_pitch = angle_pitch_acc;                                                 //Set the gyro pitch angle equal to the accelerometer pitch angle when the quadcopter is started.
-        angle_roll = angle_roll_acc;                                                   //Set the gyro roll angle equal to the accelerometer roll angle when the quadcopter is started.
+    //     angle_pitch = angle_pitch_acc;                                                 //Set the gyro pitch angle equal to the accelerometer pitch angle when the quadcopter is started.
+    //     angle_roll = angle_roll_acc;                                                   //Set the gyro roll angle equal to the accelerometer roll angle when the quadcopter is started.
 
-        //Reset the PID controllers for a bumpless start.
-        pid_i_mem_roll = 0;
-        pid_last_roll_d_error = 0;
-        pid_i_mem_pitch = 0;
-        pid_last_pitch_d_error = 0;
-        pid_i_mem_yaw = 0;
-        pid_last_yaw_d_error = 0;
-    }
-    //Stopping the motors: throttle low and yaw right.
-    if (start == 2 && channel_3 < 1050 && channel_4 > 1950) {
-        digitalWrite(2, HIGH);
-        start = 0;
-    }
+    //     //Reset the PID controllers for a bumpless start.
+    //     pid_i_mem_roll = 0;
+    //     pid_last_roll_d_error = 0;
+    //     pid_i_mem_pitch = 0;
+    //     pid_last_pitch_d_error = 0;
+    //     pid_i_mem_yaw = 0;
+    //     pid_last_yaw_d_error = 0;
+    // }
+    // //Stopping the motors: throttle low and yaw right.
+    // if (start == 2 && channel_3 < 1050 && channel_4 > 1950) {
+    //     digitalWrite(2, HIGH);
+    //     start = 0;
+    // }
 
 
     //The PID set point in degrees per second is determined by the roll receiver input.
@@ -180,6 +223,8 @@ void loop() {
     }
 
     calculate_pid();                                                                   //PID inputs are known. So we can calculate the pid output.
+    start_stop_takeoff();                                                            //Starting, stopping and take-off detection
+
 
     throttle = channel_3;                                                              //We need the throttle signal as a base signal.
     if (start == 2) {                                                                  //The motors are started.
@@ -189,10 +234,10 @@ void loop() {
         esc_3 = throttle + pid_output_pitch - pid_output_roll - pid_output_yaw;        //Calculate the pulse for esc 3 (rear-left - CCW).
         esc_4 = throttle - pid_output_pitch - pid_output_roll + pid_output_yaw;        //Calculate the pulse for esc 4 (front-left - CW).
 
-        if (esc_1 < 1100) esc_1 = 1100;                                                //Keep the motors running.
-        if (esc_2 < 1100) esc_2 = 1100;                                                //Keep the motors running.
-        if (esc_3 < 1100) esc_3 = 1100;                                                //Keep the motors running.
-        if (esc_4 < 1100) esc_4 = 1100;                                                //Keep the motors running.
+        if (esc_1 < 1100) esc_1 = motor_idle_speed;                                                //Keep the motors running.
+        if (esc_2 < 1100) esc_2 = motor_idle_speed;                                                //Keep the motors running.
+        if (esc_3 < 1100) esc_3 = motor_idle_speed;                                                //Keep the motors running.
+        if (esc_4 < 1100) esc_4 = motor_idle_speed;                                                //Keep the motors running.
 
         if (esc_1 > 2000)esc_1 = 2000;                                                 //Limit the esc-1 pulse to 2000us.
         if (esc_2 > 2000)esc_2 = 2000;                                                 //Limit the esc-2 pulse to 2000us.
@@ -205,11 +250,13 @@ void loop() {
     esc3_pwm.writeMicroseconds(esc_3);
     esc4_pwm.writeMicroseconds(esc_4);
 
-    if (debug && millis() - debug_timer > 100) {
+    if (debug && millis() - debug_timer > 200) {
         debug_timer = millis();
         if (debug_type == 0) {
             //monitor receiver signal data
             Serial.print(start);
+            Serial.print(", ");
+            Serial.print(flight_mode);
             Serial.print(", ");
             Serial.print(channel_1);
             Serial.print(", ");
@@ -217,7 +264,10 @@ void loop() {
             Serial.print(", ");
             Serial.print(channel_3);
             Serial.print(", ");
-            Serial.println(channel_4);
+            Serial.print(channel_4);
+            Serial.print(", ");
+            Serial.print(channel_5);
+            Serial.println();
         } else if (debug_type == 1) {
             //esc output pulse:-
             Serial.print(start);
@@ -262,7 +312,10 @@ void loop() {
         }
     }
 
-    if (micros() - loop_timer > 4050) digitalWrite(2, HIGH);                         //Turn on the LED if the loop time exceeds 4050us.
+    if (micros() - loop_timer > 4050) {
+        error = 2;
+        digitalWrite(2, HIGH);                         //Turn on the LED if the loop time exceeds 4050us.
+    }
     while (micros() - loop_timer < 4000) yield();                                    //We wait until 4000us are passed.
     loop_timer = micros();                                                           //Set the timer for the next loop.
 }

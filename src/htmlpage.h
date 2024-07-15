@@ -38,6 +38,7 @@ const char page[] PROGMEM = R"rawLiteral(
                 <label for="rollPitchD">Roll/Pitch(18.0) D:</label>
                 <input type="number" id="rollPitchD" name="rpD" value="0.0">
             </div>
+            <hr/>
             <div class="form-group">
                 <label for="yawP">Yaw(4.0) P:</label>
                 <input type="number" id="yawP" name="yP" value="0.0">
@@ -50,6 +51,21 @@ const char page[] PROGMEM = R"rawLiteral(
                 <label for="yawD">Yaw(0) D:</label>
                 <input type="number" id="yawD" name="yD" value="0.0">
             </div>
+            <hr/>
+            <hr/>
+            <div class="form-group">
+                <label for="yawP">alt(1.4) P:</label>
+                <input type="number" id="altP" name="aP" value="0.0">
+            </div>
+            <div class="form-group">
+                <label for="yawI">alt(0.2) I:</label>
+                <input type="number" id="altI" name="aI" value="0.0">
+            </div>
+            <div class="form-group">
+                <label for="yawD">alt(0.75) D:</label>
+                <input type="number" id="altD" name="aD" value="0.0">
+            </div>
+
             <button type="submit">Submit</button>
         </form>
     </div>
@@ -62,9 +78,14 @@ const char page[] PROGMEM = R"rawLiteral(
                     document.getElementById('rollPitchP').value = removeTrailingZeros(data.rpP)
                     document.getElementById('rollPitchI').value = removeTrailingZeros(data.rpI)
                     document.getElementById('rollPitchD').value = removeTrailingZeros(data.rpD)
+
                     document.getElementById('yawP').value = removeTrailingZeros(data.yP)
                     document.getElementById('yawI').value = removeTrailingZeros(data.yI)
                     document.getElementById('yawD').value = removeTrailingZeros(data.yD)
+                    
+                    document.getElementById('altP').value = removeTrailingZeros(data.aP)
+                    document.getElementById('altI').value = removeTrailingZeros(data.aI)
+                    document.getElementById('altD').value = removeTrailingZeros(data.aD)
                 }).catch(error => console.error('Error fetching data:', error))
         })
     </script>
